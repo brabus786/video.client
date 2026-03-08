@@ -86,9 +86,20 @@ export class WebRTCManager {
     if (!this.peerConnection) return;
 
     try {
+      // Проверяем, не находимся ли мы в процессе создания собственного offer
+      const isStable = 
+        this.peerConnection.signalingState === 'stable' || 
+        this.peerConnection.signalingState === 'have-local-offer';
+      
+      if (!isStable) {
+        // Rollback - откатываем наше локальное описание
+        await this.peerConnection.setLocalDescription({ type: 'rollback' } as RTCSessionDescriptionInit);
+      }
+
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
     } catch (error) {
       console.error('Error handling offer:', error);
+      throw error;
     }
   }
 
@@ -96,9 +107,16 @@ export class WebRTCManager {
     if (!this.peerConnection) return;
 
     try {
+      // Проверяем состояние перед установкой answer
+      if (this.peerConnection.signalingState !== 'have-local-offer') {
+        console.warn('Ignoring answer - not in correct state:', this.peerConnection.signalingState);
+        return;
+      }
+
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
     } catch (error) {
       console.error('Error handling answer:', error);
+      throw error;
     }
   }
 
