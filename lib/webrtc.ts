@@ -2,12 +2,14 @@ export class WebRTCManager {
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
+  private remoteStreamSet: boolean = false;
 
   private config: RTCConfiguration = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      // Публичный TURN сервер (для production нужен свой!)
+      { urls: 'stun:stun2.l.google.com:19302' },
+      // Публичные TURN серверы (для production нужен свой!)
       {
         urls: 'turn:openrelay.metered.ca:80',
         username: 'openrelayproject',
@@ -17,9 +19,26 @@ export class WebRTCManager {
         urls: 'turn:openrelay.metered.ca:443',
         username: 'openrelayproject',
         credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      // Альтернативные TURN серверы
+      {
+        urls: 'turn:numb.viagenie.ca',
+        username: 'webrtc@live.com',
+        credential: 'muazkh'
+      },
+      {
+        urls: 'turn:turn.bistri.com:80',
+        username: 'homeo',
+        credential: 'homeo'
       }
     ],
-    iceCandidatePoolSize: 10
+    iceCandidatePoolSize: 10,
+    iceTransportPolicy: 'all' // Пытаемся все типы соединений
   };
 
   constructor(
@@ -51,10 +70,13 @@ export class WebRTCManager {
       // Обрабатываем удаленные треки
       this.peerConnection.ontrack = (event) => {
         console.log('🎥 ontrack event:', event.streams.length, 'streams');
-        if (event.streams && event.streams[0]) {
+        if (event.streams && event.streams[0] && !this.remoteStreamSet) {
           this.remoteStream = event.streams[0];
+          this.remoteStreamSet = true;
           console.log('🎥 Remote stream получен:', this.remoteStream.getTracks().length, 'tracks');
           this.onRemoteStream(this.remoteStream);
+        } else if (this.remoteStreamSet) {
+          console.log('⏭️ ontrack проигнорирован - stream уже установлен');
         }
       };
 
@@ -70,6 +92,9 @@ export class WebRTCManager {
         console.log('🧊 ICE connection state:', this.peerConnection?.iceConnectionState);
         if (this.peerConnection?.iceConnectionState === 'failed') {
           console.error('❌ ICE failed - нужен TURN сервер');
+          console.log('🔄 Попытка перезапустить ICE...');
+          // Попытка перезапустить ICE
+          this.peerConnection?.restartIce();
         }
         if (this.peerConnection?.iceConnectionState === 'connected' || 
             this.peerConnection?.iceConnectionState === 'completed') {
@@ -84,7 +109,13 @@ export class WebRTCManager {
       // Обрабатываем ICE candidates
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          console.log('📡 Отправляем ICE candidate:', event.candidate.type, event.candidate.protocol);
+          const candidateStr = event.candidate.candidate || '';
+          let type = 'unknown';
+          if (candidateStr.includes('typ host')) type = 'host';
+          if (candidateStr.includes('typ srflx')) type = 'srflx (STUN)';
+          if (candidateStr.includes('typ relay')) type = '🔥 relay (TURN)';
+          
+          console.log(`📡 Отправляем ICE candidate: ${type} ${event.candidate.protocol}`);
           this.onIceCandidate(event.candidate);
         } else {
           console.log('✅ Все ICE candidates собраны');
@@ -190,5 +221,6 @@ export class WebRTCManager {
     this.peerConnection = null;
     this.localStream = null;
     this.remoteStream = null;
+    this.remoteStreamSet = false;
   }
 }
