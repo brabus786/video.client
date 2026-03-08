@@ -98,6 +98,19 @@ export class WebRTCManager {
     }
   }
 
+  async restartIce(): Promise<RTCSessionDescriptionInit | null> {
+    if (!this.peerConnection) return null;
+
+    try {
+      const offer = await this.peerConnection.createOffer({ iceRestart: true });
+      await this.peerConnection.setLocalDescription(offer);
+      return offer;
+    } catch (error) {
+      console.error('Error restarting ICE:', error);
+      return null;
+    }
+  }
+
   async handleOffer(offer: RTCSessionDescriptionInit) {
     if (!this.peerConnection) return;
 
@@ -139,6 +152,10 @@ export class WebRTCManager {
     } catch (error) {
       console.error('Error adding ICE candidate:', error);
     }
+  }
+
+  getConnectionState(): RTCPeerConnectionState | null {
+    return this.peerConnection?.connectionState || null;
   }
 
   private async flushPendingIceCandidates() {
