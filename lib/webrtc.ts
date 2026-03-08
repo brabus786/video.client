@@ -6,8 +6,20 @@ export class WebRTCManager {
   private config: RTCConfiguration = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+      { urls: 'stun:stun1.l.google.com:19302' },
+      // Публичный TURN сервер (для production нужен свой!)
+      {
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
+    ],
+    iceCandidatePoolSize: 10
   };
 
   constructor(
@@ -49,16 +61,33 @@ export class WebRTCManager {
       // Обработка изменений состояния соединения
       this.peerConnection.onconnectionstatechange = () => {
         console.log('📡 Connection state:', this.peerConnection?.connectionState);
+        if (this.peerConnection?.connectionState === 'failed') {
+          console.error('❌ Connection failed - возможно проблема с NAT/firewall');
+        }
       };
 
       this.peerConnection.oniceconnectionstatechange = () => {
         console.log('🧊 ICE connection state:', this.peerConnection?.iceConnectionState);
+        if (this.peerConnection?.iceConnectionState === 'failed') {
+          console.error('❌ ICE failed - нужен TURN сервер');
+        }
+        if (this.peerConnection?.iceConnectionState === 'connected' || 
+            this.peerConnection?.iceConnectionState === 'completed') {
+          console.log('✅ ICE соединение установлено!');
+        }
+      };
+
+      this.peerConnection.onicegatheringstatechange = () => {
+        console.log('🔍 ICE gathering state:', this.peerConnection?.iceGatheringState);
       };
 
       // Обрабатываем ICE candidates
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
+          console.log('📡 Отправляем ICE candidate:', event.candidate.type, event.candidate.protocol);
           this.onIceCandidate(event.candidate);
+        } else {
+          console.log('✅ Все ICE candidates собраны');
         }
       };
 
@@ -126,6 +155,7 @@ export class WebRTCManager {
     if (!this.peerConnection) return;
 
     try {
+      console.log('📥 Получен ICE candidate:', candidate.candidate?.substring(0, 50) + '...');
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (error) {
       console.error('Error adding ICE candidate:', error);
