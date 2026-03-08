@@ -9,7 +9,9 @@ export class WebRTCManager {
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' }
     ],
-    iceCandidatePoolSize: 10
+    iceCandidatePoolSize: 10,
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require'
   };
 
   constructor(
@@ -62,14 +64,30 @@ export class WebRTCManager {
       };
 
       this.peerConnection.onconnectionstatechange = () => {
-        if (this.peerConnection?.connectionState === 'failed') {
-          console.error('Connection failed');
+        const state = this.peerConnection?.connectionState;
+        console.log('Connection state:', state);
+        if (state === 'failed') {
+          console.error('Connection failed - TURN серверы могут быть недоступны');
+        } else if (state === 'connected') {
+          console.log('✅ Connection established successfully!');
         }
       };
 
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
+          // Логируем тип ICE кандидата для диагностики
+          console.log('ICE candidate type:', event.candidate.type, 'candidate:', event.candidate.candidate.substring(0, 50) + '...');
           this.onIceCandidate(event.candidate);
+        }
+      };
+
+      this.peerConnection.oniceconnectionstatechange = () => {
+        const iceState = this.peerConnection?.iceConnectionState;
+        console.log('ICE connection state:', iceState);
+        if (iceState === 'failed') {
+          console.error('❌ ICE connection failed - direct P2P не работает, нужен работающий TURN');
+        } else if (iceState === 'connected' || iceState === 'completed') {
+          console.log('✅ ICE connected!');
         }
       };
 
