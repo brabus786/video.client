@@ -100,6 +100,17 @@ export default function RoomPage() {
         });
       });
 
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        setError(`Ошибка подключения: ${error.message || 'Неизвестная ошибка'}`);
+        setConnected(false);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+        setConnected(false);
+      });
+
       // WebRTC события
       socket.on('user-joined', () => {
         console.log('User joined');
