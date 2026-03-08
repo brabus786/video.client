@@ -43,12 +43,10 @@ export class WebRTCManager {
       this.peerConnection.ontrack = (event) => {
         if (!this.remoteStream) return;
 
-        event.streams[0]?.getTracks().forEach(track => {
-          const exists = this.remoteStream?.getTracks().some(t => t.id === track.id);
-          if (!exists) {
-            this.remoteStream?.addTrack(track);
-          }
-        });
+        const trackExists = this.remoteStream.getTracks().some(track => track.id === event.track.id);
+        if (!trackExists) {
+          this.remoteStream.addTrack(event.track);
+        }
 
         if (this.remoteStream.getTracks().length > 0) {
           this.onRemoteStream(this.remoteStream);

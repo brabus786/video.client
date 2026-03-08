@@ -152,6 +152,9 @@ export default function RoomPage() {
       (stream) => {
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = stream;
+          remoteVideoRef.current.onloadedmetadata = () => {
+            remoteVideoRef.current?.play().catch(() => {});
+          };
           setRemoteStreamReceived(true);
           setPeerConnected(true);
         }
