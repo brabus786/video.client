@@ -26,6 +26,7 @@ export default function RoomPage() {
   const webrtcRef = useRef<WebRTCManager | null>(null);
   const socketRef = useRef<any>(null);
   const roomIdRef = useRef<string | null>(null);
+  const iceRestartAttemptedRef = useRef(false);
 
   useEffect(() => {
     initializeRoom();
@@ -123,12 +124,25 @@ export default function RoomPage() {
       socket.on('ice-candidate', async ({ candidate }: any) => {
         console.log('Received ICE candidate');
         await webrtcRef.current?.addIceCandidate(candidate);
+
+        if (
+          webrtcRef.current?.getConnectionState() === 'failed' &&
+          !iceRestartAttemptedRef.current &&
+          roomIdRef.current
+        ) {
+          iceRestartAttemptedRef.current = true;
+          const restartOffer = await webrtcRef.current.restartIce();
+          if (restartOffer) {
+            socket.emit('offer', { offer: restartOffer, roomId: roomIdRef.current });
+          }
+        }
       });
 
       socket.on('user-left', () => {
         console.log('User left');
         setPeerConnected(false);
         setRemoteStreamReceived(false);
+        iceRestartAttemptedRef.current = false;
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = null;
         }
