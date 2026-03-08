@@ -39,10 +39,18 @@ yarn dev
 Приложение откроется на [http://localhost:3001](http://localhost:3001)
 
 ### Production
+
+⚠️ **ВАЖНО:** На продакшене **НЕ используйте** `yarn dev`! Это вызовет ошибки WebSocket.
+
 ```bash
+# Сборка для продакшена
 yarn build
+
+# Запуск продакшен сервера
 yarn start
 ```
+
+📖 Подробные инструкции по деплою: см. [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ## Использование
 
@@ -135,9 +143,10 @@ lib/
 
 ## Production Checklist
 
+- [ ] **Использовать `npm run build && npm start` вместо `npm run dev`** ⚠️
+- [ ] Настроить переменную окружения `NEXT_PUBLIC_API_URL`
 - [ ] Настроить HTTPS (обязательно для WebRTC)
 - [ ] Добавить TURN сервер для NAT traversal
-- [ ] Настроить переменные окружения
 - [ ] Оптимизировать bundle size
 - [ ] Добавить мониторинг ошибок (Sentry)
 - [ ] Настроить CSP заголовки
