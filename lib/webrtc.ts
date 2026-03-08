@@ -15,8 +15,16 @@ export class WebRTCManager {
   constructor(
     private onLocalStream: (stream: MediaStream) => void,
     private onRemoteStream: (stream: MediaStream) => void,
-    private onIceCandidate: (candidate: RTCIceCandidate) => void
-  ) {}
+    private onIceCandidate: (candidate: RTCIceCandidate) => void,
+    iceServers?: RTCIceServer[]
+  ) {
+    if (iceServers && iceServers.length > 0) {
+      this.config = {
+        ...this.config,
+        iceServers
+      };
+    }
+  }
 
   async initialize() {
     try {

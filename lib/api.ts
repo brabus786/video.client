@@ -24,6 +24,14 @@ export interface RoomInfoResponse {
   error?: string;
 }
 
+export interface IceServersResponse {
+  success: boolean;
+  data?: {
+    iceServers: RTCIceServer[];
+  };
+  error?: string;
+}
+
 export const createRoom = async (): Promise<CreateRoomResponse> => {
   try {
     const response = await fetch(`${API_URL}/api/room/create`, {
@@ -47,5 +55,15 @@ export const getRoomInfo = async (token: string): Promise<RoomInfoResponse> => {
   } catch (error) {
     console.error('Error getting room info:', error);
     return { success: false, error: 'Failed to get room info' };
+  }
+};
+
+export const getIceServers = async (): Promise<IceServersResponse> => {
+  try {
+    const response = await fetch(`${API_URL}/api/webrtc/ice-servers`);
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting ICE servers:', error);
+    return { success: false, error: 'Failed to get ICE servers' };
   }
 };
