@@ -2,15 +2,12 @@ export class WebRTCManager {
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
-  private remoteStreamSet: boolean = false;
+  private pendingIceCandidates: RTCIceCandidateInit[] = [];
 
   private config: RTCConfiguration = {
     iceServers: [
-      // STUN серверы (только для определения публичного IP)
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' }
-      // TODO: Добавить свой TURN сервер для работы между разными сетями
-      // См. TURN-SETUP.md для инструкций
     ],
     iceCandidatePoolSize: 10
   };
@@ -41,58 +38,32 @@ export class WebRTCManager {
         }
       });
 
-      // Обрабатываем удаленные треки
+      this.remoteStream = new MediaStream();
+
       this.peerConnection.ontrack = (event) => {
-        console.log('🎥 ontrack event:', event.streams.length, 'streams');
-        if (event.streams && event.streams[0] && !this.remoteStreamSet) {
-          this.remoteStream = event.streams[0];
-          this.remoteStreamSet = true;
-          console.log('🎥 Remote stream получен:', this.remoteStream.getTracks().length, 'tracks');
+        if (!this.remoteStream) return;
+
+        event.streams[0]?.getTracks().forEach(track => {
+          const exists = this.remoteStream?.getTracks().some(t => t.id === track.id);
+          if (!exists) {
+            this.remoteStream?.addTrack(track);
+          }
+        });
+
+        if (this.remoteStream.getTracks().length > 0) {
           this.onRemoteStream(this.remoteStream);
-        } else if (this.remoteStreamSet) {
-          console.log('⏭️ ontrack проигнорирован - stream уже установлен');
         }
       };
 
-      // Обработка изменений состояния соединения
       this.peerConnection.onconnectionstatechange = () => {
-        console.log('📡 Connection state:', this.peerConnection?.connectionState);
         if (this.peerConnection?.connectionState === 'failed') {
-          console.error('❌ Connection failed - возможно проблема с NAT/firewall');
+          console.error('Connection failed');
         }
       };
 
-      this.peerConnection.oniceconnectionstatechange = () => {
-        console.log('🧊 ICE connection state:', this.peerConnection?.iceConnectionState);
-        if (this.peerConnection?.iceConnectionState === 'failed') {
-          console.error('❌ ICE failed - нужен TURN сервер');
-          console.log('🔄 Попытка перезапустить ICE...');
-          // Попытка перезапустить ICE
-          this.peerConnection?.restartIce();
-        }
-        if (this.peerConnection?.iceConnectionState === 'connected' || 
-            this.peerConnection?.iceConnectionState === 'completed') {
-          console.log('✅ ICE соединение установлено!');
-        }
-      };
-
-      this.peerConnection.onicegatheringstatechange = () => {
-        console.log('🔍 ICE gathering state:', this.peerConnection?.iceGatheringState);
-      };
-
-      // Обрабатываем ICE candidates
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          const candidateStr = event.candidate.candidate || '';
-          let type = 'unknown';
-          if (candidateStr.includes('typ host')) type = 'host';
-          if (candidateStr.includes('typ srflx')) type = 'srflx (STUN)';
-          if (candidateStr.includes('typ relay')) type = '🔥 relay (TURN)';
-          
-          console.log(`📡 Отправляем ICE candidate: ${type} ${event.candidate.protocol}`);
           this.onIceCandidate(event.candidate);
-        } else {
-          console.log('✅ Все ICE candidates собраны');
         }
       };
 
@@ -134,6 +105,7 @@ export class WebRTCManager {
 
     try {
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+      await this.flushPendingIceCandidates();
     } catch (error) {
       console.error('Error handling offer:', error);
       throw error;
@@ -144,11 +116,11 @@ export class WebRTCManager {
     if (!this.peerConnection) return;
 
     try {
-      // Проверяем что мы ждем answer
       if (this.peerConnection.signalingState === 'have-local-offer') {
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        await this.flushPendingIceCandidates();
       } else {
-        console.warn('Получен answer в неожиданном состоянии:', this.peerConnection.signalingState);
+        console.warn('Unexpected signaling state for answer:', this.peerConnection.signalingState);
       }
     } catch (error) {
       console.error('Error handling answer:', error);
@@ -160,10 +132,31 @@ export class WebRTCManager {
     if (!this.peerConnection) return;
 
     try {
-      console.log('📥 Получен ICE candidate:', candidate.candidate?.substring(0, 50) + '...');
+      if (!this.peerConnection.remoteDescription) {
+        this.pendingIceCandidates.push(candidate);
+        return;
+      }
+
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (error) {
       console.error('Error adding ICE candidate:', error);
+    }
+  }
+
+  private async flushPendingIceCandidates() {
+    if (!this.peerConnection || !this.peerConnection.remoteDescription || this.pendingIceCandidates.length === 0) {
+      return;
+    }
+
+    const candidates = [...this.pendingIceCandidates];
+    this.pendingIceCandidates = [];
+
+    for (const candidate of candidates) {
+      try {
+        await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (error) {
+        console.error('Error adding queued ICE candidate:', error);
+      }
     }
   }
 
@@ -195,6 +188,6 @@ export class WebRTCManager {
     this.peerConnection = null;
     this.localStream = null;
     this.remoteStream = null;
-    this.remoteStreamSet = false;
+    this.pendingIceCandidates = [];
   }
 }
