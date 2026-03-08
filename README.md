@@ -145,7 +145,7 @@ lib/
 
 - [ ] **Использовать `npm run build && npm start` вместо `npm run dev`** ⚠️
 - [ ] Настроить переменную окружения `NEXT_PUBLIC_API_URL`
-- [ ] **Настроить собственный TURN сервер (обязательно!)** 📖 См. [TURN-SETUP.md](TURN-SETUP.md)
+- [ ] **Установить TURN сервер на ваш backend сервер** 📖 См. [TURN-DOCKER-SETUP.md](TURN-DOCKER-SETUP.md)
 - [ ] Настроить HTTPS (обязательно для WebRTC)
 - [ ] Оптимизировать bundle size
 - [ ] Добавить мониторинг ошибок (Sentry)
@@ -178,20 +178,20 @@ WebRTC поддерживается в:
 
 Это проблема **NAT traversal** - нужен TURN сервер!
 
-📖 **Читайте:** [TURN-SETUP.md](TURN-SETUP.md)
+📖 **Читайте:** [TURN-DOCKER-SETUP.md](TURN-DOCKER-SETUP.md) - установка на ВАШ сервер
 
-**Временное решение:** Уже добавлен публичный TURN (openrelay.metered.ca)  
-**Production:** Настройте собственный TURN сервер
+**Текущее состояние:** Используется только STUN (работает не всегда)  
+**Решение:** Установить coturn на тот же сервер где video.api (~10 минут)
 
 **Отладка в консоли:**
 - Смотрите `🧊 ICE connection state`
-- Если `failed` - проблема с NAT/firewall
-- Ищите `📡 relay` в ICE candidates - значит TURN работает
+- Если `failed` - нужен TURN сервер
+- Ищите `🔥 relay (TURN)` в ICE candidates - значит TURN работает
 
 **Другие причины:**
 - Убедитесь что оба пользователя онлайн
-- Проверьте сетевые настройки/firewall
-- Убедитесь что бэкенд работает
+- Проверьте что бэкенд работает
+- Проверьте firewall на сервере
 
 ### Токен недействителен
 

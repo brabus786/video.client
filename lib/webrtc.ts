@@ -6,39 +6,13 @@ export class WebRTCManager {
 
   private config: RTCConfiguration = {
     iceServers: [
+      // STUN серверы (только для определения публичного IP)
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      // Публичные TURN серверы (для production нужен свой!)
-      {
-        urls: 'turn:openrelay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
-      },
-      {
-        urls: 'turn:openrelay.metered.ca:443',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
-      },
-      {
-        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
-      },
-      // Альтернативные TURN серверы
-      {
-        urls: 'turn:numb.viagenie.ca',
-        username: 'webrtc@live.com',
-        credential: 'muazkh'
-      },
-      {
-        urls: 'turn:turn.bistri.com:80',
-        username: 'homeo',
-        credential: 'homeo'
-      }
+      { urls: 'stun:stun1.l.google.com:19302' }
+      // TODO: Добавить свой TURN сервер для работы между разными сетями
+      // См. TURN-SETUP.md для инструкций
     ],
-    iceCandidatePoolSize: 10,
-    iceTransportPolicy: 'all' // Пытаемся все типы соединений
+    iceCandidatePoolSize: 10
   };
 
   constructor(
