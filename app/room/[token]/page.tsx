@@ -17,6 +17,7 @@ export default function RoomPage() {
   const [roomInfo, setRoomInfo] = useState<any>(null);
   const [connected, setConnected] = useState(false);
   const [peerConnected, setPeerConnected] = useState(false);
+  const [remoteStreamReceived, setRemoteStreamReceived] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
 
@@ -25,8 +26,6 @@ export default function RoomPage() {
   const webrtcRef = useRef<WebRTCManager | null>(null);
   const socketRef = useRef<any>(null);
   const roomIdRef = useRef<string | null>(null);
-  const isPoliteRef = useRef<boolean>(false);
-  const makingOfferRef = useRef<boolean>(false);
 
   useEffect(() => {
     initializeRoom();
@@ -76,16 +75,17 @@ export default function RoomPage() {
         socket.emit('join-room', { token }, async (response: any) => {
           if (response.success) {
             roomIdRef.current = response.roomId;
-            
-            // Определяем роль: первый участник = polite (уступает), второй = impolite (инициатор)
-            isPoliteRef.current = response.participantsCount === 1;
-            
             await initializeWebRTC();
             
-            // Если мы второй участник (impolite), создаем offer
+            // Если мы второй участник - создаем offer и инициируем соединение
             if (response.participantsCount >= 2) {
-              console.log('Room already has participants, creating offer (impolite peer)');
-              await createAndSendOffer();
+              console.log('Второй участник - создаем offer');
+              const offer = await webrtcRef.current?.createOffer();
+              if (offer && roomIdRef.current) {
+                socket.emit('offer', { offer, roomId: roomIdRef.current });
+              }
+            } else {
+              console.log('Первый участник - ждем второго');
             }
           } else {
             setError(response.error);
@@ -94,40 +94,36 @@ export default function RoomPage() {
       });
 
       // WebRTC события
-      socket.on('user-joined', async () => {
-        console.log('User joined, creating offer (polite peer)');
-        // Только polite peer (первый участник) создает offer когда присоединяется второй
-        if (isPoliteRef.current) {
-          await createAndSendOffer();
-        }
+      socket.on('user-joined', () => {
+        console.log('Второй участник присоединился - он создаст offer');
+        // Второй участник сам создаст offer при join-room
+        // Первый участник просто ждет offer
       });
 
       socket.on('offer', async ({ offer }: any) => {
-        console.log('Received offer');
+        console.log('Получен offer - создаем answer');
         try {
-          const offerCollision = makingOfferRef.current;
-          const ignoreOffer = !isPoliteRef.current && offerCollision;
-          
-          if (ignoreOffer) {
-            console.log('Ignoring offer - collision and we are impolite peer');
-            return;
-          }
-
           await webrtcRef.current?.handleOffer(offer);
           const answer = await webrtcRef.current?.createAnswer();
           if (answer && roomIdRef.current) {
             socket.emit('answer', { answer, roomId: roomIdRef.current });
+            console.log('Answer отправлен');
+            setPeerConnected(true);
           }
-          setPeerConnected(true);
         } catch (error) {
-          console.error('Error handling offer:', error);
+          console.error('Ошибка обработки offer:', error);
         }
       });
 
       socket.on('answer', async ({ answer }: any) => {
-        console.log('Received answer');
-        await webrtcRef.current?.handleAnswer(answer);
-        setPeerConnected(true);
+        console.log('Получен answer');
+        try {
+          await webrtcRef.current?.handleAnswer(answer);
+          setPeerConnected(true);
+          console.log('Соединение установлено');
+        } catch (error) {
+          console.error('Ошибка обработки answer:', error);
+        }
       });
 
       socket.on('ice-candidate', async ({ candidate }: any) => {
@@ -138,6 +134,7 @@ export default function RoomPage() {
       socket.on('user-left', () => {
         console.log('User left');
         setPeerConnected(false);
+        setRemoteStreamReceived(false);
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = null;
         }
@@ -151,32 +148,29 @@ export default function RoomPage() {
     }
   };
 
-  const createAndSendOffer = async () => {
-    try {
-      makingOfferRef.current = true;
-      const offer = await webrtcRef.current?.createOffer();
-      if (offer && roomIdRef.current && socketRef.current) {
-        socketRef.current.emit('offer', { offer, roomId: roomIdRef.current });
-      }
-    } catch (error) {
-      console.error('Error creating offer:', error);
-    } finally {
-      makingOfferRef.current = false;
-    }
-  };
-
   const initializeWebRTC = async () => {
     const webrtc = new WebRTCManager(
       (stream) => {
         // Локальное видео
+        console.log('✅ Локальное видео получено');
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
       },
       (stream) => {
         // Удаленное видео
+        console.log('✅ Удаленное видео получено, устанавливаем в элемент');
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = stream;
+          // Явно запускаем воспроизведение
+          remoteVideoRef.current.play().catch(err => {
+            console.error('❌ Ошибка запуска видео:', err);
+          });
+          console.log('✅ Удаленное видео установлено в video элемент');
+          // Убираем overlay когда получаем remote stream
+          setRemoteStreamReceived(true);
+        } else {
+          console.error('❌ remoteVideoRef.current is null!');
         }
       },
       (candidate) => {
@@ -255,7 +249,7 @@ export default function RoomPage() {
             autoPlay
             playsInline
           />
-          {!peerConnected && (
+          {!remoteStreamReceived && (
             <div className={styles.waitingOverlay}>
               <div className="spinner"></div>
               <p style={{ marginTop: '1rem' }}>Ожидание собеседника...</p>
