@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getRoomInfo } from '@/lib/api';
+import { getIceServers, getRoomInfo } from '@/lib/api';
 import { getSocket, disconnectSocket } from '@/lib/socket';
 import { WebRTCManager } from '@/lib/webrtc';
 import styles from './room.module.css';
@@ -27,6 +27,7 @@ export default function RoomPage() {
   const socketRef = useRef<any>(null);
   const roomIdRef = useRef<string | null>(null);
   const iceRestartAttemptedRef = useRef(false);
+  const iceServersRef = useRef<RTCIceServer[] | null>(null);
 
   useEffect(() => {
     initializeRoom();
@@ -54,6 +55,11 @@ export default function RoomPage() {
       }
 
       setRoomInfo(response.data);
+
+      const iceServersResponse = await getIceServers();
+      if (iceServersResponse.success && iceServersResponse.data?.iceServers?.length) {
+        iceServersRef.current = iceServersResponse.data.iceServers;
+      }
 
       // Инициализируем сокет
       const socket = getSocket();
@@ -181,7 +187,8 @@ export default function RoomPage() {
             roomId: roomIdRef.current
           });
         }
-      }
+      },
+      iceServersRef.current || undefined
     );
 
     await webrtc.initialize();
