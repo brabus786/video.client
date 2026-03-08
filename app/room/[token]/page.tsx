@@ -95,34 +95,28 @@ export default function RoomPage() {
 
       // WebRTC события
       socket.on('user-joined', () => {
-        console.log('Второй участник присоединился - он создаст offer');
-        // Второй участник сам создаст offer при join-room
-        // Первый участник просто ждет offer
+        console.log('User joined');
       });
 
       socket.on('offer', async ({ offer }: any) => {
-        console.log('Получен offer - создаем answer');
+        console.log('Received offer');
         try {
           await webrtcRef.current?.handleOffer(offer);
           const answer = await webrtcRef.current?.createAnswer();
           if (answer && roomIdRef.current) {
             socket.emit('answer', { answer, roomId: roomIdRef.current });
-            console.log('Answer отправлен');
-            setPeerConnected(true);
           }
         } catch (error) {
-          console.error('Ошибка обработки offer:', error);
+          console.error('Error handling offer:', error);
         }
       });
 
       socket.on('answer', async ({ answer }: any) => {
-        console.log('Получен answer');
+        console.log('Received answer');
         try {
           await webrtcRef.current?.handleAnswer(answer);
-          setPeerConnected(true);
-          console.log('Соединение установлено');
         } catch (error) {
-          console.error('Ошибка обработки answer:', error);
+          console.error('Error handling answer:', error);
         }
       });
 
@@ -151,22 +145,15 @@ export default function RoomPage() {
   const initializeWebRTC = async () => {
     const webrtc = new WebRTCManager(
       (stream) => {
-        // Локальное видео
-        console.log('✅ Локальное видео получено');
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
       },
       (stream) => {
-        // Удаленное видео
-        console.log('✅ Удаленное видео получено, устанавливаем в элемент');
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = stream;
-          console.log('✅ Удаленное видео установлено в video элемент');
-          // Убираем overlay когда получаем remote stream
           setRemoteStreamReceived(true);
-        } else {
-          console.error('❌ remoteVideoRef.current is null!');
+          setPeerConnected(true);
         }
       },
       (candidate) => {
