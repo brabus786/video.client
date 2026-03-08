@@ -162,10 +162,6 @@ export default function RoomPage() {
         console.log('✅ Удаленное видео получено, устанавливаем в элемент');
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = stream;
-          // Явно запускаем воспроизведение
-          remoteVideoRef.current.play().catch(err => {
-            console.error('❌ Ошибка запуска видео:', err);
-          });
           console.log('✅ Удаленное видео установлено в video элемент');
           // Убираем overlay когда получаем remote stream
           setRemoteStreamReceived(true);
