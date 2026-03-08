@@ -38,8 +38,21 @@ export class WebRTCManager {
 
       // Обрабатываем удаленные треки
       this.peerConnection.ontrack = (event) => {
-        this.remoteStream = event.streams[0];
-        this.onRemoteStream(this.remoteStream);
+        console.log('🎥 ontrack event:', event.streams.length, 'streams');
+        if (event.streams && event.streams[0]) {
+          this.remoteStream = event.streams[0];
+          console.log('🎥 Remote stream получен:', this.remoteStream.getTracks().length, 'tracks');
+          this.onRemoteStream(this.remoteStream);
+        }
+      };
+
+      // Обработка изменений состояния соединения
+      this.peerConnection.onconnectionstatechange = () => {
+        console.log('📡 Connection state:', this.peerConnection?.connectionState);
+      };
+
+      this.peerConnection.oniceconnectionstatechange = () => {
+        console.log('🧊 ICE connection state:', this.peerConnection?.iceConnectionState);
       };
 
       // Обрабатываем ICE candidates
@@ -86,16 +99,6 @@ export class WebRTCManager {
     if (!this.peerConnection) return;
 
     try {
-      // Проверяем, не находимся ли мы в процессе создания собственного offer
-      const isStable = 
-        this.peerConnection.signalingState === 'stable' || 
-        this.peerConnection.signalingState === 'have-local-offer';
-      
-      if (!isStable) {
-        // Rollback - откатываем наше локальное описание
-        await this.peerConnection.setLocalDescription({ type: 'rollback' } as RTCSessionDescriptionInit);
-      }
-
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
     } catch (error) {
       console.error('Error handling offer:', error);
@@ -107,13 +110,12 @@ export class WebRTCManager {
     if (!this.peerConnection) return;
 
     try {
-      // Проверяем состояние перед установкой answer
-      if (this.peerConnection.signalingState !== 'have-local-offer') {
-        console.warn('Ignoring answer - not in correct state:', this.peerConnection.signalingState);
-        return;
+      // Проверяем что мы ждем answer
+      if (this.peerConnection.signalingState === 'have-local-offer') {
+        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+      } else {
+        console.warn('Получен answer в неожиданном состоянии:', this.peerConnection.signalingState);
       }
-
-      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
     } catch (error) {
       console.error('Error handling answer:', error);
       throw error;
