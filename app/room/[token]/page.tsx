@@ -25,6 +25,8 @@ export default function RoomPage() {
   const webrtcRef = useRef<WebRTCManager | null>(null);
   const socketRef = useRef<any>(null);
   const roomIdRef = useRef<string | null>(null);
+  const isPoliteRef = useRef<boolean>(false);
+  const makingOfferRef = useRef<boolean>(false);
 
   useEffect(() => {
     initializeRoom();
@@ -74,15 +76,16 @@ export default function RoomPage() {
         socket.emit('join-room', { token }, async (response: any) => {
           if (response.success) {
             roomIdRef.current = response.roomId;
+            
+            // Определяем роль: первый участник = polite (уступает), второй = impolite (инициатор)
+            isPoliteRef.current = response.participantsCount === 1;
+            
             await initializeWebRTC();
             
-            // Если в комнате уже есть другой участник, создаем offer
+            // Если мы второй участник (impolite), создаем offer
             if (response.participantsCount >= 2) {
-              console.log('Room already has participants, creating offer');
-              const offer = await webrtcRef.current?.createOffer();
-              if (offer && roomIdRef.current) {
-                socket.emit('offer', { offer, roomId: roomIdRef.current });
-              }
+              console.log('Room already has participants, creating offer (impolite peer)');
+              await createAndSendOffer();
             }
           } else {
             setError(response.error);
@@ -92,21 +95,33 @@ export default function RoomPage() {
 
       // WebRTC события
       socket.on('user-joined', async () => {
-        console.log('User joined, creating offer');
-        const offer = await webrtcRef.current?.createOffer();
-        if (offer && roomIdRef.current) {
-          socket.emit('offer', { offer, roomId: roomIdRef.current });
+        console.log('User joined, creating offer (polite peer)');
+        // Только polite peer (первый участник) создает offer когда присоединяется второй
+        if (isPoliteRef.current) {
+          await createAndSendOffer();
         }
       });
 
       socket.on('offer', async ({ offer }: any) => {
         console.log('Received offer');
-        await webrtcRef.current?.handleOffer(offer);
-        const answer = await webrtcRef.current?.createAnswer();
-        if (answer && roomIdRef.current) {
-          socket.emit('answer', { answer, roomId: roomIdRef.current });
+        try {
+          const offerCollision = makingOfferRef.current;
+          const ignoreOffer = !isPoliteRef.current && offerCollision;
+          
+          if (ignoreOffer) {
+            console.log('Ignoring offer - collision and we are impolite peer');
+            return;
+          }
+
+          await webrtcRef.current?.handleOffer(offer);
+          const answer = await webrtcRef.current?.createAnswer();
+          if (answer && roomIdRef.current) {
+            socket.emit('answer', { answer, roomId: roomIdRef.current });
+          }
+          setPeerConnected(true);
+        } catch (error) {
+          console.error('Error handling offer:', error);
         }
-        setPeerConnected(true);
       });
 
       socket.on('answer', async ({ answer }: any) => {
@@ -133,6 +148,20 @@ export default function RoomPage() {
       console.error('Error initializing room:', err);
       setError('Ошибка инициализации');
       setLoading(false);
+    }
+  };
+
+  const createAndSendOffer = async () => {
+    try {
+      makingOfferRef.current = true;
+      const offer = await webrtcRef.current?.createOffer();
+      if (offer && roomIdRef.current && socketRef.current) {
+        socketRef.current.emit('offer', { offer, roomId: roomIdRef.current });
+      }
+    } catch (error) {
+      console.error('Error creating offer:', error);
+    } finally {
+      makingOfferRef.current = false;
     }
   };
 
