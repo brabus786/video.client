@@ -6,8 +6,13 @@ export class WebRTCManager {
 
   private config: RTCConfiguration = {
     iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
+      { urls: process.env.NEXT_PUBLIC_STUN_URL_1 || 'stun:stun.l.google.com:19302' },
+      { urls: process.env.NEXT_PUBLIC_STUN_URL_2 || 'stun:stun1.l.google.com:19302' },
+      {
+        urls: process.env.NEXT_PUBLIC_TURN_URL || 'turn:openrelay.metered.ca:80',
+        username: process.env.NEXT_PUBLIC_TURN_USERNAME || 'openrelayproject',
+        credential: process.env.NEXT_PUBLIC_TURN_PASSWORD || 'openrelayproject'
+      }
     ],
     iceCandidatePoolSize: 10,
     bundlePolicy: 'max-bundle',
@@ -30,7 +35,7 @@ export class WebRTCManager {
 
   async initialize() {
     try {
-      // Получаем доступ к медиа устройствам
+      // Get access to media devices
       this.localStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true
@@ -38,10 +43,10 @@ export class WebRTCManager {
 
       this.onLocalStream(this.localStream);
 
-      // Создаем peer connection
+      // Create peer connection
       this.peerConnection = new RTCPeerConnection(this.config);
 
-      // Добавляем локальные треки
+      // Add local tracks
       this.localStream.getTracks().forEach(track => {
         if (this.peerConnection && this.localStream) {
           this.peerConnection.addTrack(track, this.localStream);
@@ -67,7 +72,7 @@ export class WebRTCManager {
         const state = this.peerConnection?.connectionState;
         console.log('Connection state:', state);
         if (state === 'failed') {
-          console.error('Connection failed - TURN серверы могут быть недоступны');
+          console.error('Connection failed - TURN servers may be unavailable');
         } else if (state === 'connected') {
           console.log('✅ Connection established successfully!');
         }
@@ -75,7 +80,7 @@ export class WebRTCManager {
 
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          // Логируем тип ICE кандидата для диагностики
+          // Log ICE candidate type for diagnostics
           console.log('ICE candidate type:', event.candidate.type, 'candidate:', event.candidate.candidate.substring(0, 50) + '...');
           this.onIceCandidate(event.candidate);
         }
@@ -85,7 +90,7 @@ export class WebRTCManager {
         const iceState = this.peerConnection?.iceConnectionState;
         console.log('ICE connection state:', iceState);
         if (iceState === 'failed') {
-          console.error('❌ ICE connection failed - direct P2P не работает, нужен работающий TURN');
+          console.error('❌ ICE connection failed - direct P2P does not work, a working TURN is required');
         } else if (iceState === 'connected' || iceState === 'completed') {
           console.log('✅ ICE connected!');
         }

@@ -1,199 +1,200 @@
 # Video Call Client
 
-Frontend для видео-звонков на Next.js с WebRTC и Socket.IO.
+Frontend for video calls built with Next.js, WebRTC, and Socket.IO.
 
-## Стек технологий
+## Tech Stack
 
-- **Next.js 14** - React фреймворк
-- **TypeScript** - типизация
-- **Socket.IO Client** - WebSocket коммуникация
-- **WebRTC API** - peer-to-peer видео/аудио
+- **Next.js 14** - React framework
+- **TypeScript** - type safety
+- **Socket.IO Client** - WebSocket communication
+- **WebRTC API** - peer-to-peer video/audio
 
-## Установка
+## Installation
 
 ```bash
 yarn install
 ```
 
-## Настройка
+## Setup
 
-Создайте файл `.env.local`:
+Create a `.env.local` file:
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Укажите URL бэкенда:
+Set your backend URL and WebRTC credentials in `.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=your_api_url
+NEXT_PUBLIC_STUN_URL_1=your_stun_url_1
+NEXT_PUBLIC_STUN_URL_2=your_stun_url_2
+NEXT_PUBLIC_TURN_URL=your_turn_url
+NEXT_PUBLIC_TURN_USERNAME=your_turn_username
+NEXT_PUBLIC_TURN_PASSWORD=your_turn_password
 ```
 
-## Запуск
+## Running
 
 ### Development
 ```bash
 yarn dev
 ```
-
-Приложение откроется на [http://localhost:3001](http://localhost:3001)
+App will open at [http://localhost:3001](http://localhost:3001)
 
 ### Production
 
-⚠️ **ВАЖНО:** На продакшене **НЕ используйте** `yarn dev`! Это вызовет ошибки WebSocket.
+⚠️ **IMPORTANT:** Do **NOT** use `yarn dev` in production! This will cause WebSocket errors.
 
 ```bash
-# Сборка для продакшена
+# Build for production
 yarn build
 
-# Запуск продакшен сервера
+# Start production server
 yarn start
 ```
 
-📖 Подробные инструкции по деплою: см. [DEPLOYMENT.md](DEPLOYMENT.md)
+## Usage
 
-## Использование
+### 1. Create a Room
 
-### 1. Создание комнаты
+1. Open the main page
+2. Click "Create Room"
+3. Copy the link
+4. Share it with your peer
 
-1. Откройте главную страницу
-2. Нажмите "Создать комнату"
-3. Скопируйте ссылку
-4. Отправьте собеседнику
+### 2. Join a Call
 
-### 2. Присоединение к звонку
+1. Open the link from your peer
+2. Allow camera/microphone access
+3. Wait for the second participant to join
 
-1. Перейдите по ссылке от собеседника
-2. Разрешите доступ к камере/микрофону
-3. Ожидайте подключения второго участника
+### 3. Call Controls
 
-### 3. Управление звонком
+- **🎤** - Toggle microphone
+- **📹** - Toggle camera
+- **📞** - End call
 
-- **🎤** - Вкл/Выкл микрофон
-- **📹** - Вкл/Выкл камеру
-- **📞** - Завершить звонок
-
-## Структура проекта
+## Project Structure
 
 ```
 app/
-├── layout.tsx              # Корневой layout
-├── globals.css             # Глобальные стили
-├── page.tsx                # Главная страница (создание комнаты)
+├── layout.tsx              # Root layout
+├── globals.css             # Global styles
+├── page.tsx                # Main page (room creation)
 ├── page.module.css
 └── room/
     └── [token]/
-        ├── page.tsx        # Страница видео-звонка
+        ├── page.tsx        # Video call page
         └── room.module.css
 
 lib/
-├── api.ts                  # REST API клиент
-├── socket.ts               # Socket.IO конфигурация
-└── webrtc.ts               # WebRTC менеджер
+├── api.ts                  # REST API client
+├── socket.ts               # Socket.IO configuration
+└── webrtc.ts               # WebRTC manager
 ```
 
-## Архитектура
+## Architecture
 
 ### WebRTC Flow
 
 ```
-Пользователь 1                    Сервер                    Пользователь 2
-     |                               |                              |
-     |------ join-room ------------->|                              |
-     |<----- success ----------------|                              |
-     |                               |                              |
-     |                               |<----- join-room -------------|
-     |                               |------ success -------------->|
-     |                               |                              |
-     |                               |------ user-joined -----------|
-     |                                                               |
-     |------------------ offer (через сервер) --------------------->|
-     |<------------------ answer (через сервер) --------------------|
-     |<------------> ICE candidates exchange <-------------------->|
-     |                                                               |
-     |<=================== P2P Video/Audio =======================>|
+User 1                        Server                        User 2
+   |                             |                             |
+   |------ join-room ----------->|                             |
+   |<----- success --------------|                             |
+   |                             |<----- join-room ------------|
+   |                             |------ success ------------->|
+   |                             |                             |
+   |                             |------ user-joined ----------|
+   |                                                           |
+   |------------------ offer (via server) -------------------->|
+   |<------------------ answer (via server) -------------------|
+   |<------------> ICE candidates exchange <------------------>|
+   |                                                           |
+   |<=================== P2P Video/Audio =====================>|
 ```
 
-### Компоненты
+### Components
 
 **WebRTCManager** (`lib/webrtc.ts`)
-- Управление MediaStream
-- Создание/обработка SDP (offer/answer)
-- ICE candidates обмен
-- Управление треками (audio/video)
+- MediaStream management
+- SDP (offer/answer) creation/handling
+- ICE candidates exchange
+- Audio/video track management
 
 **Socket** (`lib/socket.ts`)
-- Singleton паттерн для Socket.IO
-- Авто-переподключение
-- Управление жизненным циклом
+- Socket.IO singleton pattern
+- Auto-reconnect
+- Lifecycle management
 
 **API Client** (`lib/api.ts`)
-- REST запросы к бэкенду
-- Типизация ответов
-- Обработка ошибок
+- REST requests to backend
+- Typed responses
+- Error handling
 
-## Возможности
+## Features
 
-✅ Peer-to-peer видео звонки  
-✅ Управление микрофоном/камерой  
-✅ Адаптивный дизайн  
-✅ Статус подключения  
-✅ Автоматическая обработка отключений  
-✅ TypeScript типизация  
+✅ Peer-to-peer video calls  
+✅ Microphone/camera control  
+✅ Responsive design  
+✅ Connection status  
+✅ Automatic disconnect handling  
+✅ TypeScript typing  
 
 ## Production Checklist
 
-- [ ] **Использовать `npm run build && npm start` вместо `npm run dev`** ⚠️
-- [ ] Настроить переменную окружения `NEXT_PUBLIC_API_URL`
-- [ ] Проверить подключение между разными сетями
-- [ ] Настроить HTTPS (обязательно для WebRTC)
-- [ ] Оптимизировать bundle size
-- [ ] Добавить мониторинг ошибок (Sentry)
-- [ ] Настроить CSP заголовки
-- [ ] Добавить тесты
+- [ ] **Use `npm run build && npm start` instead of `npm run dev`** ⚠️
+- [ ] Set the `NEXT_PUBLIC_API_URL` environment variable
+- [ ] Test connectivity across different networks
+- [ ] Enable HTTPS (required for WebRTC)
+- [ ] Optimize bundle size
+- [ ] Add error monitoring (e.g., Sentry)
+- [ ] Set CSP headers
+- [ ] Add tests
 
-## Браузерная поддержка
+## Browser Support
 
-WebRTC поддерживается в:
+WebRTC is supported in:
 - Chrome/Edge 56+
 - Firefox 52+
 - Safari 11+
 - Opera 43+
 
-Мобильные браузеры:
+Mobile browsers:
 - Chrome Android
 - Safari iOS 11+
 
 ## Troubleshooting
 
-### Камера/микрофон не работают
+### Camera/microphone not working
 
-- Проверьте разрешения браузера
-- Требуется HTTPS (или localhost)
-- Закройте другие приложения использующие камеру
+- Check browser permissions
+- HTTPS required (or localhost)
+- Close other apps using the camera
 
-### Не удается подключиться к собеседнику
+### Can't connect to peer
 
-**Работает на одном компьютере, но не между разными устройствами?**
+**Works on one computer but not between devices?**
 
-Это проблема **NAT traversal** - нужен TURN сервер!
+This is a **NAT traversal** issue — you need a TURN server!
 
-**Текущее состояние:** Используется только STUN
+**Current state:** Only STUN is used by default
 
-**Отладка в консоли:**
-- Смотрите `🧊 ICE connection state`
-- Если `failed` - нужен TURN сервер
-- Ищите `🔥 relay (TURN)` в ICE candidates - значит TURN работает
+**Debug in console:**
+- Check `🧊 ICE connection state`
+- If `failed` — TURN server is needed
+- Look for `🔥 relay (TURN)` in ICE candidates — means TURN is working
 
-**Другие причины:**
-- Убедитесь что оба пользователя онлайн
-- Проверьте что бэкенд работает
-- Проверьте firewall на сервере
+**Other reasons:**
+- Make sure both users are online
+- Check that the backend is running
+- Check server firewall
 
-### Токен недействителен
+### Token invalid
 
-- Токены живут 15 минут
-- Создайте новую комнату
+- Tokens are valid for 15 minutes
+- Create a new room
 
 ## License
 
