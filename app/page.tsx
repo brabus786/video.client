@@ -35,9 +35,9 @@ export default function Home() {
   return (
     <div className="container">
       <div className={styles.hero}>
-        <h1 className={styles.title}>🎥 Видео Звонки</h1>
+        <h1 className={styles.title}>🎥 Video Calls</h1>
         <p className={styles.subtitle}>
-          Создайте комнату и поделитесь ссылкой для видео-звонка
+          Create a room and share the link for a video call
         </p>
 
         {!roomData ? (
@@ -50,19 +50,19 @@ export default function Home() {
               {loading ? (
                 <>
                   <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }}></div>
-                  Создаем комнату...
+                  Creating room...
                 </>
               ) : (
-                '+ Создать комнату'
+                '+ Create Room'
               )}
             </button>
           </div>
         ) : (
           <div className="card" style={{ marginTop: '2rem' }}>
             <div className={styles.roomInfo}>
-              <h2>✅ Комната создана!</h2>
+              <h2>✅ Room created!</h2>
               <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-                Ссылка действительна до {new Date(roomData.expiresAt).toLocaleString('ru-RU')}
+                Link valid until {new Date(roomData.expiresAt).toLocaleString('en-US')}
               </p>
 
               <div className={styles.linkContainer}>
@@ -75,7 +75,7 @@ export default function Home() {
                   className={`btn ${copied ? 'btn-success' : 'btn-primary'}`}
                   onClick={() => copyToClipboard(`${getBaseUrl()}/room/${roomData.token}`)}
                 >
-                  {copied ? '✓ Скопировано' : '📋 Копировать'}
+                  {copied ? '✓ Copied' : '📋 Copy'}
                 </button>
               </div>
 
@@ -84,13 +84,13 @@ export default function Home() {
                   href={`/room/${roomData.token}`}
                   className="btn btn-primary"
                 >
-                  🎥 Присоединиться к звонку
+                  🎥 Join the call
                 </a>
                 <button 
                   className="btn btn-secondary"
                   onClick={() => setRoomData(null)}
                 >
-                  Создать новую комнату
+                  Create new room
                 </button>
               </div>
             </div>
@@ -100,18 +100,18 @@ export default function Home() {
         <div className={styles.features}>
           <div className={styles.feature}>
             <div className={styles.featureIcon}>🔒</div>
-            <h3>Безопасно</h3>
-            <p>Peer-to-peer соединение через WebRTC</p>
+            <h3>Secure</h3>
+            <p>Peer-to-peer connection via WebRTC</p>
           </div>
           <div className={styles.feature}>
             <div className={styles.featureIcon}>⚡</div>
-            <h3>Быстро</h3>
-            <p>Комната доступна 15 минут</p>
+            <h3>Fast</h3>
+            <p>Room available for 15 minutes</p>
           </div>
           <div className={styles.feature}>
             <div className={styles.featureIcon}>👥</div>
-            <h3>Просто</h3>
-            <p>Один клик для создания звонка</p>
+            <h3>Simple</h3>
+            <p>One click to create a call</p>
           </div>
         </div>
       </div>
