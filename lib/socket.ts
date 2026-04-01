@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
 
-export const getSocket = (url: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'): Socket => {
+export const getSocket = (url: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3008'): Socket => {
   if (!socket) {
     socket = io(url, {
       autoConnect: false,
