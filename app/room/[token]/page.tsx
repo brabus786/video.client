@@ -39,29 +39,29 @@ export default function RoomPage() {
 
   const initializeRoom = async () => {
     try {
-      // Проверяем токен
+      // Check token
       const response = await getRoomInfo(token);
-      
-      if (!response.success || !response.data) {
-        setError(response.error || 'Комната не найдена');
+      let skipRoomInfo = false;
+      if (!response.success && response.error === 'Room not found') {
+        // Do not show error, continue initialization via socket
+        skipRoomInfo = true;
+      } else if (!response.success || !response.data) {
+        setError(response.error || 'Room not found');
         setLoading(false);
         return;
       }
 
-      if (!response.data.isAvailable) {
-        setError('Комната заполнена');
-        setLoading(false);
-        return;
+      // Do not block connection via REST even if isAvailable === false
+      if (!skipRoomInfo && response.data) {
+        setRoomInfo(response.data);
       }
-
-      setRoomInfo(response.data);
 
       const iceServersResponse = await getIceServers();
       if (iceServersResponse.success && iceServersResponse.data?.iceServers?.length) {
         iceServersRef.current = iceServersResponse.data.iceServers;
       }
 
-      // Инициализируем сокет
+      // Initialize socket
       const socket = getSocket();
       socketRef.current = socket;
 
@@ -77,22 +77,20 @@ export default function RoomPage() {
       socket.on('connect', () => {
         console.log('Socket connected');
         setConnected(true);
-        
-        // Присоединяемся к комнате
+        // Join the room
         socket.emit('join-room', { token }, async (response: any) => {
           if (response.success) {
             roomIdRef.current = response.roomId;
             await initializeWebRTC();
-            
-            // Если мы второй участник - создаем offer и инициируем соединение
+            // If we are the second participant - create offer and initiate connection
             if (response.participantsCount >= 2) {
-              console.log('Второй участник - создаем offer');
+              console.log('Second participant - creating offer');
               const offer = await webrtcRef.current?.createOffer();
               if (offer && roomIdRef.current) {
                 socket.emit('offer', { offer, roomId: roomIdRef.current });
               }
             } else {
-              console.log('Первый участник - ждем второго');
+              console.log('First participant - waiting for peer');
             }
           } else {
             setError(response.error);
@@ -102,7 +100,7 @@ export default function RoomPage() {
 
       socket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
-        setError(`Ошибка подключения: ${error.message || 'Неизвестная ошибка'}`);
+        setError(`Connection error: ${error.message || 'Unknown error'}`);
         setConnected(false);
       });
 
@@ -111,7 +109,7 @@ export default function RoomPage() {
         setConnected(false);
       });
 
-      // WebRTC события
+      // WebRTC events
       socket.on('user-joined', () => {
         console.log('User joined');
       });
@@ -168,7 +166,7 @@ export default function RoomPage() {
       setLoading(false);
     } catch (err) {
       console.error('Error initializing room:', err);
-      setError('Ошибка инициализации');
+      setError('Initialization error');
       setLoading(false);
     }
   };
@@ -237,7 +235,7 @@ export default function RoomPage() {
     return (
       <div className={styles.loadingContainer}>
         <div className="spinner"></div>
-        <p style={{ color: 'white', marginTop: '1rem' }}>Подключение...</p>
+        <p style={{ color: 'white', marginTop: '1rem' }}>Connecting...</p>
       </div>
     );
   }
@@ -247,10 +245,10 @@ export default function RoomPage() {
       <div className={styles.errorContainer}>
         <div className="card" style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</h1>
-          <h2 style={{ marginBottom: '1rem' }}>Ошибка</h2>
+          <h2 style={{ marginBottom: '1rem' }}>Error</h2>
           <p style={{ color: '#64748b', marginBottom: '2rem' }}>{error}</p>
           <button className="btn btn-primary" onClick={() => router.push('/')}>
-            На главную
+            Home
           </button>
         </div>
       </div>
@@ -260,7 +258,7 @@ export default function RoomPage() {
   return (
     <div className={styles.roomContainer}>
       <div className={styles.videoGrid}>
-        {/* Удаленное видео (главное) */}
+        {/* Remote video (main) */}
         <div className={`video-container ${styles.remoteVideo}`}>
           <video
             ref={remoteVideoRef}
@@ -270,12 +268,12 @@ export default function RoomPage() {
           {!remoteStreamReceived && (
             <div className={styles.waitingOverlay}>
               <div className="spinner"></div>
-              <p style={{ marginTop: '1rem' }}>Ожидание собеседника...</p>
+              <p style={{ marginTop: '1rem' }}>Waiting for peer...</p>
             </div>
           )}
         </div>
 
-        {/* Локальное видео (маленькое) */}
+        {/* Local video (small) */}
         <div className={`video-container ${styles.localVideo}`}>
           <video
             ref={localVideoRef}
@@ -286,12 +284,12 @@ export default function RoomPage() {
         </div>
       </div>
 
-      {/* Элементы управления */}
+      {/* Controls */}
       <div className="video-controls">
         <button
           className={`btn ${audioEnabled ? 'btn-secondary' : 'btn-danger'}`}
           onClick={toggleAudio}
-          title={audioEnabled ? 'Выключить микрофон' : 'Включить микрофон'}
+          title={audioEnabled ? 'Mute microphone' : 'Unmute microphone'}
         >
           {audioEnabled ? '🎤' : '🔇'}
         </button>
@@ -299,7 +297,7 @@ export default function RoomPage() {
         <button
           className={`btn ${videoEnabled ? 'btn-secondary' : 'btn-danger'}`}
           onClick={toggleVideo}
-          title={videoEnabled ? 'Выключить камеру' : 'Включить камеру'}
+          title={videoEnabled ? 'Turn off camera' : 'Turn on camera'}
         >
           {videoEnabled ? '📹' : '📷'}
         </button>
@@ -307,20 +305,20 @@ export default function RoomPage() {
         <button
           className="btn btn-danger"
           onClick={leaveRoom}
-          title="Завершить звонок"
+          title="End call"
         >
           📞
         </button>
       </div>
 
-      {/* Статус */}
+      {/* Status */}
       <div className={styles.statusBar}>
         <span className={`status ${connected ? 'status-success' : 'status-error'}`}>
-          {connected ? '● Подключено' : '● Отключено'}
+          {connected ? '● Connected' : '● Disconnected'}
         </span>
         {peerConnected && (
           <span className="status status-success">
-            👥 Собеседник онлайн
+            👥 Peer online
           </span>
         )}
       </div>
