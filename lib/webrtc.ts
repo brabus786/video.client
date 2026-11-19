@@ -23,12 +23,19 @@ export class WebRTCManager {
     private onLocalStream: (stream: MediaStream) => void,
     private onRemoteStream: (stream: MediaStream) => void,
     private onIceCandidate: (candidate: RTCIceCandidate) => void,
-    iceServers?: RTCIceServer[]
+    iceServers?: RTCIceServer[],
+    relayOnly = false
   ) {
     if (iceServers && iceServers.length > 0) {
       this.config = {
         ...this.config,
         iceServers
+      };
+    }
+    if (relayOnly) {
+      this.config = {
+        ...this.config,
+        iceTransportPolicy: 'relay'
       };
     }
   }

@@ -75,6 +75,16 @@ yarn start
 - **📹** - Toggle camera
 - **📞** - End call
 
+### Test TURN relay
+
+Append `?turnTest=1` to a room URL to force that browser to use relay ICE candidates. For example:
+
+```text
+https://your-client/room/ROOM_TOKEN?turnTest=1
+```
+
+For a strict relay-only test, open the URL with the parameter on both participants' devices. In `chrome://webrtc-internals`, check that the selected ICE candidate pair uses a `relay` candidate. Remove the query parameter for normal calls.
+
 ## Project Structure
 
 ```
