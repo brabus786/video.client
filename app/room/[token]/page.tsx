@@ -172,6 +172,7 @@ export default function RoomPage() {
   };
 
   const initializeWebRTC = async () => {
+    const relayOnly = new URLSearchParams(window.location.search).get('turnTest') === '1';
     const webrtc = new WebRTCManager(
       (stream) => {
         if (localVideoRef.current) {
@@ -197,7 +198,8 @@ export default function RoomPage() {
           });
         }
       },
-      iceServersRef.current || undefined
+      iceServersRef.current || undefined,
+      relayOnly
     );
 
     await webrtc.initialize();
